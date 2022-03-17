@@ -39,6 +39,8 @@ public class Main extends JavaPlugin implements Listener {
   File mappingFile = new File(getDataFolder() + File.separator + mappingFilename);
   BufferedReader br = null;
   Integer mappingCount = 0;
+
+  Logger logger = this.getLogger();
 	
 	@Override
     public void onEnable() {
@@ -55,7 +57,6 @@ public class Main extends JavaPlugin implements Listener {
         }
         
         //Update
-        Logger logger = this.getLogger();
         
         new UpdateChecker(this, 61432).getVersion(version -> {
             if (this.getDescription().getVersion().equalsIgnoreCase(version)) {
@@ -65,54 +66,7 @@ public class Main extends JavaPlugin implements Listener {
             }
         });
 
-        logger.info("Loading shortcodes into memory...");
-
-        if (!mappingFile.exists())
-          saveResource(mappingFilename, false); //https://bukkit.org/threads/copy-file-from-resources.102015/#post-1345427
-        emojiMappings.clear();
-        mappingCount = 0;
-
-        //Miscellaneous Symbols
-        try { //https://www.geeksforgeeks.org/reading-text-file-into-java-hashmap/
-          br = new BufferedReader(new FileReader(mappingFile));
-          String line = null;
-
-          while ((line = br.readLine()) != null) {
-              String[] lineRead = line.split(mappingDelimiter);
-              if (!lineRead[0].equals("") && !lineRead[1].equals("")) {
-                String[] colorCode = {"&r", "&r"};
-
-                if (!(getConfig().getString(lineRead[0]) == null) && !(getConfig().getString("suffix_" + lineRead[0]) == null)) { //https://bukkit.org/threads/check-config-for-null-string.366097/#post-3137224
-                  colorCode = new String[]{getConfig().getString(lineRead[0]), getConfig().getString("suffix_" + lineRead[0])}; //https://stackoverflow.com/a/20992528
-
-                  emojiMappings.put(lineRead[0], ChatColor.translateAlternateColorCodes('&', colorCode[0]) + lineRead[1] + ChatColor.translateAlternateColorCodes('&', colorCode[1]));
-                } else {
-                  emojiMappings.put(lineRead[0], lineRead[1]);
-                }
-
-                mappingCount++;
-              }
-          }
-          logger.info("Shortcodes successfully loaded!");
-        }
-        catch (Exception e) { //https://stackoverflow.com/a/6823021
-          logger.severe("Failed to parse shortcodes mapping!");
-            
-          StringWriter writer = new StringWriter();
-          PrintWriter printWriter = new PrintWriter(writer);
-          e.printStackTrace(printWriter);
-          printWriter.flush();
-          getLogger().log(Level.SEVERE, writer.toString());
-        } finally {
-            if (br != null) {
-                try {
-                    br.close();
-                }
-                catch (Exception e) {};
-            }
-        }
-        // Uncomment if allowing /emoji list to be dynamic
-        //maxpage = mappingCount/getConfig().getInt("pagesperpage")+1; //dynamic
+        loadShortcodes();
     }
 	public void onDisable() {
 		
@@ -180,13 +134,13 @@ public class Main extends JavaPlugin implements Listener {
      if(p.hasPermission("emoji.shortcuts")) { 
       if(getConfig().getBoolean("shortcuts") == true){
         try { msg = msg.replace(":)", emojiMappings.get("white_smiling_face")); }
-        catch (Exception e) { getLogger().severe("No shortcode defined for \"white_smiling_face\"!"); }
+        catch (Exception e) { logger.severe("No shortcode defined for \"white_smiling_face\"!"); }
         
         try { msg = msg.replace(":(", emojiMappings.get("white_frowning_face")); }
-        catch (Exception e) { getLogger().severe("No shortcode defined for \"white_frowning_face\"!"); }
+        catch (Exception e) { logger.severe("No shortcode defined for \"white_frowning_face\"!"); }
         
         try { msg = msg.replace("<3", emojiMappings.get("black_heart_suit")); }
-        catch (Exception e) { getLogger().severe("No shortcode defined for \"black_heart_suit\"!"); }
+        catch (Exception e) { logger.severe("No shortcode defined for \"black_heart_suit\"!"); }
     	}else{
     	//gjør ingenting
     	} 
@@ -286,25 +240,97 @@ public class Main extends JavaPlugin implements Listener {
               return true;
             }
             
-      	  else if(args.length > 0 && args[0].equalsIgnoreCase("help")){   
-         	 if (player.hasPermission("emoji.help")) { 
-	            	  player.sendMessage(
-		         		         ChatColor.GOLD + "[Emoji] " + "\n"
-		         		        		 		+ "HELP:" + "\n"
-		         		        		 		+ "/emoji list -List all macros" + "\n"
-		         		        		 		+ "/emoji help -Displays this page" + "\n"
-		         		            			  );
-         	  
-               return true;
+            else if(args.length > 0 && args[0].equalsIgnoreCase("help")){   
+            if (player.hasPermission("emoji.help")) { 
+                    player.sendMessage(
+                          ChatColor.GOLD + "[Emoji] " + "\n"
+                                  + "HELP:" + "\n"
+                                  + "/emoji list -List all macros" + "\n"
+                                  + "/emoji help -Displays this page" + "\n"
+                                      );
               
-           }
-        }
+                return true;
+                
+            }
+          } else if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
+            if (player.hasPermission("emoji.reload")) { 
+              sender.sendMessage("§eReloading Emoji...");
+              reloadConfig();
+
+              maxpage = 109/getConfig().getInt("pagesperpage")+1;
+              surrounding = getConfig().getString("surrounding");
+
+              loadShortcodes();
+
+              //Extra
+              white_draughts_man= ChatColor.translateAlternateColorCodes('&', getConfig().getString("white_draughts_man")) + ("\u26C0") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_white_draughts_man"));
+              white_draughts_king= ChatColor.translateAlternateColorCodes('&', getConfig().getString("white_draughts_king")) + ("\u26C1") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_white_draughts_king"));
+              black_draughts_man= ChatColor.translateAlternateColorCodes('&', getConfig().getString("black_draughts_man")) + ("\u26C2") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_black_draughts_man"));
+              black_draughts_king= ChatColor.translateAlternateColorCodes('&', getConfig().getString("black_draughts_king")) + ("\u26C3") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_black_draughts_king"));
+
+              logger.warning("Some config options do not support being updated through /emoji reload. Restart the server to fully apply all changes.");
+              sender.sendMessage("§eSome config options do not support being updated through /emoji reload. Restart the server to fully apply all changes.");
+
+              return true;
+            }
+          }
         	  
           }
           sender.sendMessage("This is not a command!");
           return true;
         }
         return false;
+      }
+
+      private void loadShortcodes() {
+        logger.info("Loading shortcodes into memory...");
+
+          if (!mappingFile.exists())
+            saveResource(mappingFilename, false); //https://bukkit.org/threads/copy-file-from-resources.102015/#post-1345427
+          emojiMappings.clear();
+          mappingCount = 0;
+  
+          //Miscellaneous Symbols
+          try { //https://www.geeksforgeeks.org/reading-text-file-into-java-hashmap/
+            br = new BufferedReader(new FileReader(mappingFile));
+            String line = null;
+  
+            while ((line = br.readLine()) != null) {
+                String[] lineRead = line.split(mappingDelimiter);
+                if (!lineRead[0].equals("") && !lineRead[1].equals("")) {
+                  String[] colorCode = {"&r", "&r"};
+  
+                  if (!(getConfig().getString(lineRead[0]) == null) && !(getConfig().getString("suffix_" + lineRead[0]) == null)) { //https://bukkit.org/threads/check-config-for-null-string.366097/#post-3137224
+                    colorCode = new String[]{getConfig().getString(lineRead[0]), getConfig().getString("suffix_" + lineRead[0])}; //https://stackoverflow.com/a/20992528
+  
+                    emojiMappings.put(lineRead[0], ChatColor.translateAlternateColorCodes('&', colorCode[0]) + lineRead[1] + ChatColor.translateAlternateColorCodes('&', colorCode[1]));
+                  } else {
+                    emojiMappings.put(lineRead[0], lineRead[1]);
+                  }
+  
+                  mappingCount++;
+                }
+            }
+            logger.info("Shortcodes successfully loaded!");
+          }
+          catch (Exception e) { //https://stackoverflow.com/a/6823021
+            logger.severe("Failed to parse shortcodes mapping!");
+              
+            StringWriter writer = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(writer);
+            e.printStackTrace(printWriter);
+            printWriter.flush();
+            logger.log(Level.SEVERE, writer.toString());
+          } finally {
+              if (br != null) {
+                  try {
+                      br.close();
+                  }
+                  catch (Exception e) {};
+              }
+          }
+          // Uncomment if allowing /emoji list to be dynamic
+          //maxpage = mappingCount/getConfig().getInt("pagesperpage")+1; //dynamic
       }
 
       public List<String> getEmojiPage(int page) {
