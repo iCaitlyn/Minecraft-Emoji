@@ -31,7 +31,9 @@ import org.bstats.bukkit.Metrics;
 
 public class Main extends JavaPlugin implements Listener {
 	FileConfiguration config = this.getConfig();
-  ConcurrentHashMap<String, String> emojiMappings = new ConcurrentHashMap<String, String>(); //https://www.spigotmc.org/threads/concurrentmodificationexception.430268/#post-3759420
+
+  //https://www.spigotmc.org/threads/concurrentmodificationexception.430268/#post-3759420
+  ConcurrentHashMap<String, String> emojiMappings = new ConcurrentHashMap<String, String>();
   String delimiter = ",", mappingFilename = "shortcodes.txt";
   File mappingFile = new File(getDataFolder() + File.separator + mappingFilename);
   BufferedReader br = null;
@@ -73,8 +75,17 @@ public class Main extends JavaPlugin implements Listener {
 
           while ((line = br.readLine()) != null) {
               String[] lineRead = line.split(delimiter);
-              if (!lineRead[0].equals("") && !lineRead[1].equals(""))
-                emojiMappings.put(lineRead[0], lineRead[1]);
+              if (!lineRead[0].equals("") && !lineRead[1].equals("")) {
+                String[] colorCode = {"&r", "&r"};
+
+                if (!(getConfig().getString(lineRead[0]) == null) && !(getConfig().getString("suffix_" + lineRead[0]) == null)) { //https://bukkit.org/threads/check-config-for-null-string.366097/#post-3137224
+                  colorCode = new String[]{getConfig().getString(lineRead[0]), getConfig().getString("suffix_" + lineRead[0])}; //https://stackoverflow.com/a/20992528
+
+                  emojiMappings.put(lineRead[0], ChatColor.translateAlternateColorCodes('&', colorCode[0]) + lineRead[1] + ChatColor.translateAlternateColorCodes('&', colorCode[1]));
+                } else {
+                  emojiMappings.put(lineRead[0], lineRead[1]);
+                }
+              }
           }
           logger.info("Shortcodes successfully loaded!");
         }
@@ -94,6 +105,8 @@ public class Main extends JavaPlugin implements Listener {
                 catch (Exception e) {};
             }
         }
+
+        
     }
 	public void onDisable() {
 		
@@ -101,9 +114,13 @@ public class Main extends JavaPlugin implements Listener {
     //ekstra
 	String surrounding = getConfig().getString("surrounding");
 	int maxpage = 109/getConfig().getInt("pagesperpage")+1;
+
+  //Regex Preparation, https://stackoverflow.com/a/1454936 and https://stackoverflow.com/a/5887729
+  String regex_string = "(?<=\\" + surrounding.trim() + ")[a-zA-Z0-9-_]+(?=\\"+ surrounding.trim() + ")";  
 	
     //Hent config og emoji kode
 	//Miscellaneous Symbols
+  /*
 	String black_sun_with_rays= ChatColor.translateAlternateColorCodes('&', getConfig().getString("black_sun_with_rays")) + ("\u2600") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_black_sun_with_rays"));
 	String cloud= ChatColor.translateAlternateColorCodes('&', getConfig().getString("cloud")) + ("\u2601") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_cloud"));
 	String umbrella= ChatColor.translateAlternateColorCodes('&', getConfig().getString("umbrella")) + ("\u2602") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_umbrella"));
@@ -213,7 +230,9 @@ public class Main extends JavaPlugin implements Listener {
 	String music_sharp_sign= ChatColor.translateAlternateColorCodes('&', getConfig().getString("music_sharp_sign")) + ("\u266F") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_music_sharp_sign"));
 	String west_syriac_cross= ChatColor.translateAlternateColorCodes('&', getConfig().getString("west_syriac_cross")) + ("\u2670") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_west_syriac_cross"));
 	String east_syriac_cross= ChatColor.translateAlternateColorCodes('&', getConfig().getString("east_syriac_cross")) + ("\u2671") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_east_syriac_cross"));
-	//Extra
+	*/
+
+  //Extra
 	String white_draughts_man= ChatColor.translateAlternateColorCodes('&', getConfig().getString("white_draughts_man")) + ("\u26C0") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_white_draughts_man"));
 	String white_draughts_king= ChatColor.translateAlternateColorCodes('&', getConfig().getString("white_draughts_king")) + ("\u26C1") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_white_draughts_king"));
 	String black_draughts_man= ChatColor.translateAlternateColorCodes('&', getConfig().getString("black_draughts_man")) + ("\u26C2") + ChatColor.translateAlternateColorCodes('&', getConfig().getString("suffix_black_draughts_man"));
@@ -227,9 +246,8 @@ public class Main extends JavaPlugin implements Listener {
     	if(getConfig().getBoolean("chat") == true){
      String msg = event.getMessage();
  
-        //Miscellaneous Symbols
+     //Miscellaneous Symbols
      // Regex Preparation, https://stackoverflow.com/a/1454936 and https://stackoverflow.com/a/5887729
-     String regex_string = "(?<=\\" + surrounding.trim() + ")[a-zA-Z0-9-_]+(?=\\"+ surrounding.trim() + ")";
      Pattern msg_pattern = Pattern.compile(regex_string); //https://stackoverflow.com/a/237068
      Matcher msg_matcher = msg_pattern.matcher(msg);
      String shortcode_string = "", emoji_string = "";
@@ -241,7 +259,7 @@ public class Main extends JavaPlugin implements Listener {
        emoji_string = emojiMappings.get(shortcode_string);
 
        if (emoji_string != null)
-        msg = msg.replace(surrounding + shortcode_string + surrounding + "", emoji_string + "");
+        msg = msg.replace(surrounding + shortcode_string + surrounding, emoji_string);
      }
 
      //Extra
@@ -265,9 +283,19 @@ public class Main extends JavaPlugin implements Listener {
      //shortcuts
      if(p.hasPermission("emoji.shortcuts")) { 
       if(getConfig().getBoolean("shortcuts") == true){
+        /*
           msg = msg.replace(":)", white_smiling_face);
           msg = msg.replace(":(", white_frowning_face);
           msg = msg.replace("<3", black_heart_suit);
+        */
+        try { msg = msg.replace(":)", emojiMappings.get("white_smiling_face")); }
+        catch (Exception e) { getLogger().severe("No shortcode defined for \"white_smiling_face\"!"); }
+        
+        try { msg = msg.replace(":(", emojiMappings.get("white_frowning_face")); }
+        catch (Exception e) { getLogger().severe("No shortcode defined for \"white_frowning_face\"!"); }
+        
+        try { msg = msg.replace("<3", emojiMappings.get("black_heart_suit")); }
+        catch (Exception e) { getLogger().severe("No shortcode defined for \"black_heart_suit\"!"); }
     	}else{
     	//gjør ingenting
     	} 
@@ -282,11 +310,32 @@ public class Main extends JavaPlugin implements Listener {
     @EventHandler
     public void onSignChange(SignChangeEvent e) {
      Player p = e.getPlayer();
+
+     // Regex Preparation, https://stackoverflow.com/a/1454936 and https://stackoverflow.com/a/5887729
+     Pattern sign_pattern = Pattern.compile(regex_string); //https://stackoverflow.com/a/237068
+     Matcher sign_matcher = null;
+     String shortcode_string = "", emoji_string = "";
+
      if(p.hasPermission("emoji.sign")) {
       if(getConfig().getBoolean("sign") == true){
         for (int i = 0; i < 4; i++) {
         	
         	//Miscellaneous Symbols
+          
+          sign_matcher = sign_pattern.matcher(e.getLine(i));
+          // Check if msg contains pattern for shortcode
+          while (sign_matcher.find()) {
+            // If pattern matches, get emoji for shortcode
+            shortcode_string = sign_matcher.group(0).toLowerCase(Locale.ENGLISH); //https://stackoverflow.com/a/11063161
+            emoji_string = emojiMappings.get(shortcode_string);
+
+            if (emoji_string != null) {
+              if (e.getLine(i).equalsIgnoreCase(surrounding + shortcode_string + surrounding))
+                e.setLine(i, emoji_string);
+            } 
+          }
+          
+          /*
         	if(e.getLine(i).equalsIgnoreCase(surrounding + "black_sun_with_rays" + surrounding)) { e.setLine(i, black_sun_with_rays); }
         	if(e.getLine(i).equalsIgnoreCase(surrounding + "cloud" + surrounding)) { e.setLine(i, cloud); }
         	if(e.getLine(i).equalsIgnoreCase(surrounding + "umbrella" + surrounding)) { e.setLine(i, umbrella); }
@@ -396,6 +445,7 @@ public class Main extends JavaPlugin implements Listener {
         	if(e.getLine(i).equalsIgnoreCase(surrounding + "music_sharp_sign" + surrounding)) { e.setLine(i, music_sharp_sign); }
         	if(e.getLine(i).equalsIgnoreCase(surrounding + "west_syriac_cross" + surrounding)) { e.setLine(i, west_syriac_cross); }
         	if(e.getLine(i).equalsIgnoreCase(surrounding + "east_syriac_cross" + surrounding)) { e.setLine(i, east_syriac_cross); }
+          */
         	//Extra
         	if(e.getLine(i).equalsIgnoreCase("%white_draughts_man%")) { e.setLine(i, white_draughts_man); }
         	if(e.getLine(i).equalsIgnoreCase("%white_draughts_king%")) { e.setLine(i, white_draughts_king); }
@@ -478,115 +528,115 @@ public class Main extends JavaPlugin implements Listener {
         List<String> lines = new ArrayList<>();
         
         //Miscellaneous Symbols
-        lines.add(surrounding + "black_sun_with_rays" + surrounding + " = " + black_sun_with_rays + "\n");
-        lines.add(surrounding + "cloud" + surrounding + " = " + cloud + "\n");
-        lines.add(surrounding + "umbrella" + surrounding + " = " + umbrella + "\n");
-        lines.add(surrounding + "snowman" + surrounding + " = " + snowman + "\n");
-        lines.add(surrounding + "comet" + surrounding + " = " + comet + "\n");
-        lines.add(surrounding + "black_star" + surrounding + " = " + black_star + "\n");
-        lines.add(surrounding + "white_star" + surrounding + " = " + white_star + "\n");
-        lines.add(surrounding + "lightning" + surrounding + " = " + lightning + "\n");
-        lines.add(surrounding + "thunderstorm" + surrounding + " = " + thunderstorm + "\n");
-        lines.add(surrounding + "sun" + surrounding + " = " + sun + "\n");
-        lines.add(surrounding + "ascending_node" + surrounding + " = " + ascending_node + "\n");
-        lines.add(surrounding + "descending_node" + surrounding + " = " + descending_node + "\n");
-        lines.add(surrounding + "conjunction" + surrounding + " = " + conjunction + "\n");
-        lines.add(surrounding + "opposition" + surrounding + " = " + opposition + "\n");
-        lines.add(surrounding + "black_telephone" + surrounding + " = " + black_telephone + "\n");
-        lines.add(surrounding + "white_telephone" + surrounding + " = " + white_telephone + "\n");
-        lines.add(surrounding + "ballot_box" + surrounding + " = " + ballot_box + "\n");
-        lines.add(surrounding + "ballot_box_with_check" + surrounding + " = " + ballot_box_with_check + "\n");
-        lines.add(surrounding + "ballot_box_with_x" + surrounding + " = " + ballot_box_with_x + "\n");
-        lines.add(surrounding + "saltire" + surrounding + " = " + saltire + "\n");
-        lines.add(surrounding + "reversed_rotated_floral_heart_bullet" + surrounding + " = " + reversed_rotated_floral_heart_bullet + "\n");
-        lines.add(surrounding + "black_left_pointing_index" + surrounding + " = " + black_left_pointing_index + "\n");
-        lines.add(surrounding + "black_right_pointing_index" + surrounding + " = " + black_right_pointing_index + "\n");
-        lines.add(surrounding + "white_left_pointing_index" + surrounding + " = " + white_left_pointing_index + "\n");
-        lines.add(surrounding + "white_up_pointing_index" + surrounding + " = " + white_up_pointing_index + "\n");
-        lines.add(surrounding + "white_right_pointing_index" + surrounding + " = " + white_right_pointing_index + "\n");
-        lines.add(surrounding + "white_down_pointing_index" + surrounding + " = " + white_down_pointing_index + "\n");
-        lines.add(surrounding + "skull_and_crossbones" + surrounding + " = " + skull_and_crossbones + "\n");
-        lines.add(surrounding + "caution_sign" + surrounding + " = " + caution_sign + "\n");
-        lines.add(surrounding + "radioactive_sign" + surrounding + " = " + radioactive_sign + "\n");
-        lines.add(surrounding + "biohazard_sign" + surrounding + " = " + biohazard_sign + "\n");
-        lines.add(surrounding + "caduceus" + surrounding + " = " + caduceus + "\n");
-        lines.add(surrounding + "ankh" + surrounding + " = " + ankh + "\n");
-        lines.add(surrounding + "orthodox_cross" + surrounding + " = " + orthodox_cross + "\n");
-        lines.add(surrounding + "chi_rho" + surrounding + " = " + chi_rho + "\n");
-        lines.add(surrounding + "cross_of_lorraine" + surrounding + " = " + cross_of_lorraine + "\n");
-        lines.add(surrounding + "cross_of_jerusalem" + surrounding + " = " + cross_of_jerusalem + "\n");
-        lines.add(surrounding + "star_and_crescent" + surrounding + " = " + star_and_crescent + "\n");
-        lines.add(surrounding + "farsi_symbol" + surrounding + " = " + farsi_symbol + "\n");
-        lines.add(surrounding + "adi_shakti" + surrounding + " = " + adi_shakti + "\n");
-        lines.add(surrounding + "hammer_and_sickle" + surrounding + " = " + hammer_and_sickle + "\n");
-        lines.add(surrounding + "peace_symbol" + surrounding + " = " + peace_symbol + "\n");
-        lines.add(surrounding + "yin_yang" + surrounding + " = " + yin_yang + "\n");
-        lines.add(surrounding + "trigram_for_heaven" + surrounding + " = " + trigram_for_heaven + "\n");
-        lines.add(surrounding + "trigram_for_lake" + surrounding + " = " + trigram_for_lake + "\n");
-        lines.add(surrounding + "trigram_for_fire" + surrounding + " = " + trigram_for_fire + "\n");
-        lines.add(surrounding + "trigram_for_thunder" + surrounding + " = " + trigram_for_thunder + "\n");
-        lines.add(surrounding + "trigram_for_wind" + surrounding + " = " + trigram_for_wind + "\n");
-        lines.add(surrounding + "trigram_for_water" + surrounding + " = " + trigram_for_water + "\n");
-        lines.add(surrounding + "trigram_for_mountain" + surrounding + " = " + trigram_for_mountain + "\n");
-        lines.add(surrounding + "trigram_for_earth" + surrounding + " = " + trigram_for_earth + "\n");
-        lines.add(surrounding + "wheel_of_dharma" + surrounding + " = " + wheel_of_dharma + "\n");
-        lines.add(surrounding + "white_frowning_face" + surrounding + " = " + white_frowning_face + "\n");
-        lines.add(surrounding + "white_smiling_face" + surrounding + " = " + white_smiling_face + "\n");
-        lines.add(surrounding + "black_smiling_face" + surrounding + " = " + black_smiling_face + "\n");
-        lines.add(surrounding + "white_sun_with_rays" + surrounding + " = " + white_sun_with_rays + "\n");
-        lines.add(surrounding + "first_quarter_moon" + surrounding + " = " + first_quarter_moon + "\n");
-        lines.add(surrounding + "last_quarter_moon" + surrounding + " = " + last_quarter_moon + "\n");
-        lines.add(surrounding + "mercury" + surrounding + " = " + mercury + "\n");
-        lines.add(surrounding + "female_sign" + surrounding + " = " + female_sign + "\n");
-        lines.add(surrounding + "earth" + surrounding + " = " + earth + "\n");
-        lines.add(surrounding + "male_sign" + surrounding + " = " + male_sign + "\n");
-        lines.add(surrounding + "jupiter" + surrounding + " = " + jupiter + "\n");
-        lines.add(surrounding + "saturn" + surrounding + " = " + saturn + "\n");
-        lines.add(surrounding + "uranus" + surrounding + " = " + uranus + "\n");
-        lines.add(surrounding + "neptune" + surrounding + " = " + neptune + "\n");
-        lines.add(surrounding + "pluto" + surrounding + " = " + pluto + "\n");
-        lines.add(surrounding + "aries" + surrounding + " = " + aries + "\n");
-        lines.add(surrounding + "taurus" + surrounding + " = " + taurus + "\n");
-        lines.add(surrounding + "gemini" + surrounding + " = " + gemini + "\n");
-        lines.add(surrounding + "cancer" + surrounding + " = " + cancer + "\n");
-        lines.add(surrounding + "leo" + surrounding + " = " + leo + "\n");
-        lines.add(surrounding + "virgo" + surrounding + " = " + virgo + "\n");
-        lines.add(surrounding + "libra" + surrounding + " = " + libra + "\n");
-        lines.add(surrounding + "scorpius" + surrounding + " = " + scorpius + "\n");
-        lines.add(surrounding + "sagittarius" + surrounding + " = " + sagittarius + "\n");
-        lines.add(surrounding + "capricorn" + surrounding + " = " + capricorn + "\n");
-        lines.add(surrounding + "aquarius" + surrounding + " = " + aquarius + "\n");
-        lines.add(surrounding + "pisces" + surrounding + " = " + pisces + "\n");
-        lines.add(surrounding + "white_chess_king" + surrounding + " = " + white_chess_king + "\n");
-        lines.add(surrounding + "white_chess_queen" + surrounding + " = " + white_chess_queen + "\n");
-        lines.add(surrounding + "white_chess_rook" + surrounding + " = " + white_chess_rook + "\n");
-        lines.add(surrounding + "white_chess_bishop" + surrounding + " = " + white_chess_bishop + "\n");
-        lines.add(surrounding + "white_chess_knight" + surrounding + " = " + white_chess_knight + "\n");
-        lines.add(surrounding + "white_chess_pawn" + surrounding + " = " + white_chess_pawn + "\n");
-        lines.add(surrounding + "black_chess_king" + surrounding + " = " + black_chess_king + "\n");
-        lines.add(surrounding + "black_chess_queen" + surrounding + " = " + black_chess_queen + "\n");
-        lines.add(surrounding + "black_chess_rook" + surrounding + " = " + black_chess_rook + "\n");
-        lines.add(surrounding + "black_chess_bishop" + surrounding + " = " + black_chess_bishop + "\n");
-        lines.add(surrounding + "black_chess_knight" + surrounding + " = " + black_chess_knight + "\n");
-        lines.add(surrounding + "black_chess_pawn" + surrounding + " = " + black_chess_pawn + "\n");
-        lines.add(surrounding + "black_spade_suit" + surrounding + " = " + black_spade_suit + "\n");
-        lines.add(surrounding + "white_heart_suit" + surrounding + " = " + white_heart_suit + "\n");
-        lines.add(surrounding + "white_diamond_suit" + surrounding + " = " + white_diamond_suit + "\n");
-        lines.add(surrounding + "black_club_suit" + surrounding + " = " + black_club_suit + "\n");
-        lines.add(surrounding + "white_spade_suit" + surrounding + " = " + white_spade_suit + "\n");
-        lines.add(surrounding + "black_heart_suit" + surrounding + " = " + black_heart_suit + "\n");
-        lines.add(surrounding + "black_diamond_suit" + surrounding + " = " + black_diamond_suit + "\n");
-        lines.add(surrounding + "white_club_suit" + surrounding + " = " + white_club_suit + "\n");
-        lines.add(surrounding + "hot_springs" + surrounding + " = " + hot_springs + "\n");
-        lines.add(surrounding + "quarter_note" + surrounding + " = " + quarter_note + "\n");
-        lines.add(surrounding + "eighth_note" + surrounding + " = " + eighth_note + "\n");
-        lines.add(surrounding + "beamed_eighth_notes" + surrounding + " = " + beamed_eighth_notes + "\n");
-        lines.add(surrounding + "beamed_sixteenth_notes" + surrounding + " = " + beamed_sixteenth_notes + "\n");
-        lines.add(surrounding + "music_flat_sign" + surrounding + " = " + music_flat_sign + "\n");
-        lines.add(surrounding + "music_natural_sign" + surrounding + " = " + music_natural_sign + "\n");
-        lines.add(surrounding + "music_sharp_sign" + surrounding + " = " + music_sharp_sign + "\n");
-        lines.add(surrounding + "west_syriac_cross" + surrounding + " = " + west_syriac_cross + "\n");
-        lines.add(surrounding + "east_syriac_cross" + surrounding + " = " + east_syriac_cross + "\n");
+        lines.add(surrounding + "black_sun_with_rays" + surrounding + " = " + emojiMappings.get("black_sun_with_rays") + "\n");
+        lines.add(surrounding + "cloud" + surrounding + " = " + emojiMappings.get("cloud") + "\n");
+        lines.add(surrounding + "umbrella" + surrounding + " = " + emojiMappings.get("umbrella") + "\n");
+        lines.add(surrounding + "snowman" + surrounding + " = " + emojiMappings.get("snowman") + "\n");
+        lines.add(surrounding + "comet" + surrounding + " = " + emojiMappings.get("comet") + "\n");
+        lines.add(surrounding + "black_star" + surrounding + " = " + emojiMappings.get("black_star") + "\n");
+        lines.add(surrounding + "white_star" + surrounding + " = " + emojiMappings.get("white_star") + "\n");
+        lines.add(surrounding + "lightning" + surrounding + " = " + emojiMappings.get("lightning") + "\n");
+        lines.add(surrounding + "thunderstorm" + surrounding + " = " + emojiMappings.get("thunderstorm") + "\n");
+        lines.add(surrounding + "sun" + surrounding + " = " + emojiMappings.get("sun") + "\n");
+        lines.add(surrounding + "ascending_node" + surrounding + " = " + emojiMappings.get("ascending_node") + "\n");
+        lines.add(surrounding + "descending_node" + surrounding + " = " + emojiMappings.get("descending_node") + "\n");
+        lines.add(surrounding + "conjunction" + surrounding + " = " + emojiMappings.get("conjunction") + "\n");
+        lines.add(surrounding + "opposition" + surrounding + " = " + emojiMappings.get("opposition") + "\n");
+        lines.add(surrounding + "black_telephone" + surrounding + " = " + emojiMappings.get("black_telephone") + "\n");
+        lines.add(surrounding + "white_telephone" + surrounding + " = " + emojiMappings.get("white_telephone") + "\n");
+        lines.add(surrounding + "ballot_box" + surrounding + " = " + emojiMappings.get("ballot_box") + "\n");
+        lines.add(surrounding + "ballot_box_with_check" + surrounding + " = " + emojiMappings.get("ballot_box_with_check") + "\n");
+        lines.add(surrounding + "ballot_box_with_x" + surrounding + " = " + emojiMappings.get("ballot_box_with_x") + "\n");
+        lines.add(surrounding + "saltire" + surrounding + " = " + emojiMappings.get("saltire") + "\n");
+        lines.add(surrounding + "reversed_rotated_floral_heart_bullet" + surrounding + " = " + emojiMappings.get("reversed_rotated_floral_heart_bullet") + "\n");
+        lines.add(surrounding + "black_left_pointing_index" + surrounding + " = " + emojiMappings.get("black_left_pointing_index") + "\n");
+        lines.add(surrounding + "black_right_pointing_index" + surrounding + " = " + emojiMappings.get("black_right_pointing_index") + "\n");
+        lines.add(surrounding + "white_left_pointing_index" + surrounding + " = " + emojiMappings.get("white_left_pointing_index") + "\n");
+        lines.add(surrounding + "white_up_pointing_index" + surrounding + " = " + emojiMappings.get("white_up_pointing_index") + "\n");
+        lines.add(surrounding + "white_right_pointing_index" + surrounding + " = " + emojiMappings.get("white_right_pointing_index") + "\n");
+        lines.add(surrounding + "white_down_pointing_index" + surrounding + " = " + emojiMappings.get("white_down_pointing_index") + "\n");
+        lines.add(surrounding + "skull_and_crossbones" + surrounding + " = " + emojiMappings.get("skull_and_crossbones") + "\n");
+        lines.add(surrounding + "caution_sign" + surrounding + " = " + emojiMappings.get("caution_sign") + "\n");
+        lines.add(surrounding + "radioactive_sign" + surrounding + " = " + emojiMappings.get("radioactive_sign") + "\n");
+        lines.add(surrounding + "biohazard_sign" + surrounding + " = " + emojiMappings.get("biohazard_sign") + "\n");
+        lines.add(surrounding + "caduceus" + surrounding + " = " + emojiMappings.get("caduceus") + "\n");
+        lines.add(surrounding + "ankh" + surrounding + " = " + emojiMappings.get("ankh") + "\n");
+        lines.add(surrounding + "orthodox_cross" + surrounding + " = " + emojiMappings.get("orthodox_cross") + "\n");
+        lines.add(surrounding + "chi_rho" + surrounding + " = " + emojiMappings.get("chi_rho") + "\n");
+        lines.add(surrounding + "cross_of_lorraine" + surrounding + " = " + emojiMappings.get("cross_of_lorraine") + "\n");
+        lines.add(surrounding + "cross_of_jerusalem" + surrounding + " = " + emojiMappings.get("cross_of_jerusalem") + "\n");
+        lines.add(surrounding + "star_and_crescent" + surrounding + " = " + emojiMappings.get("star_and_crescent") + "\n");
+        lines.add(surrounding + "farsi_symbol" + surrounding + " = " + emojiMappings.get("farsi_symbol") + "\n");
+        lines.add(surrounding + "adi_shakti" + surrounding + " = " + emojiMappings.get("adi_shakti") + "\n");
+        lines.add(surrounding + "hammer_and_sickle" + surrounding + " = " + emojiMappings.get("hammer_and_sickle") + "\n");
+        lines.add(surrounding + "peace_symbol" + surrounding + " = " + emojiMappings.get("peace_symbol") + "\n");
+        lines.add(surrounding + "yin_yang" + surrounding + " = " + emojiMappings.get("yin_yang") + "\n");
+        lines.add(surrounding + "trigram_for_heaven" + surrounding + " = " + emojiMappings.get("trigram_for_heaven") + "\n");
+        lines.add(surrounding + "trigram_for_lake" + surrounding + " = " + emojiMappings.get("trigram_for_lake") + "\n");
+        lines.add(surrounding + "trigram_for_fire" + surrounding + " = " + emojiMappings.get("trigram_for_fire") + "\n");
+        lines.add(surrounding + "trigram_for_thunder" + surrounding + " = " + emojiMappings.get("trigram_for_thunder") + "\n");
+        lines.add(surrounding + "trigram_for_wind" + surrounding + " = " + emojiMappings.get("trigram_for_wind") + "\n");
+        lines.add(surrounding + "trigram_for_water" + surrounding + " = " + emojiMappings.get("trigram_for_water") + "\n");
+        lines.add(surrounding + "trigram_for_mountain" + surrounding + " = " + emojiMappings.get("trigram_for_mountain") + "\n");
+        lines.add(surrounding + "trigram_for_earth" + surrounding + " = " + emojiMappings.get("trigram_for_earth") + "\n");
+        lines.add(surrounding + "wheel_of_dharma" + surrounding + " = " + emojiMappings.get("wheel_of_dharma") + "\n");
+        lines.add(surrounding + "white_frowning_face" + surrounding + " = " + emojiMappings.get("white_frowning_face") + "\n");
+        lines.add(surrounding + "white_smiling_face" + surrounding + " = " + emojiMappings.get("white_smiling_face") + "\n");
+        lines.add(surrounding + "black_smiling_face" + surrounding + " = " + emojiMappings.get("black_smiling_face") + "\n");
+        lines.add(surrounding + "white_sun_with_rays" + surrounding + " = " + emojiMappings.get("white_sun_with_rays") + "\n");
+        lines.add(surrounding + "first_quarter_moon" + surrounding + " = " + emojiMappings.get("first_quarter_moon") + "\n");
+        lines.add(surrounding + "last_quarter_moon" + surrounding + " = " + emojiMappings.get("last_quarter_moon") + "\n");
+        lines.add(surrounding + "mercury" + surrounding + " = " + emojiMappings.get("mercury") + "\n");
+        lines.add(surrounding + "female_sign" + surrounding + " = " + emojiMappings.get("female_sign") + "\n");
+        lines.add(surrounding + "earth" + surrounding + " = " + emojiMappings.get("earth") + "\n");
+        lines.add(surrounding + "male_sign" + surrounding + " = " + emojiMappings.get("male_sign") + "\n");
+        lines.add(surrounding + "jupiter" + surrounding + " = " + emojiMappings.get("jupiter") + "\n");
+        lines.add(surrounding + "saturn" + surrounding + " = " + emojiMappings.get("saturn") + "\n");
+        lines.add(surrounding + "uranus" + surrounding + " = " + emojiMappings.get("uranus") + "\n");
+        lines.add(surrounding + "neptune" + surrounding + " = " + emojiMappings.get("neptune") + "\n");
+        lines.add(surrounding + "pluto" + surrounding + " = " + emojiMappings.get("pluto") + "\n");
+        lines.add(surrounding + "aries" + surrounding + " = " + emojiMappings.get("aries") + "\n");
+        lines.add(surrounding + "taurus" + surrounding + " = " + emojiMappings.get("taurus") + "\n");
+        lines.add(surrounding + "gemini" + surrounding + " = " + emojiMappings.get("gemini") + "\n");
+        lines.add(surrounding + "cancer" + surrounding + " = " + emojiMappings.get("cancer") + "\n");
+        lines.add(surrounding + "leo" + surrounding + " = " + emojiMappings.get("leo") + "\n");
+        lines.add(surrounding + "virgo" + surrounding + " = " + emojiMappings.get("virgo") + "\n");
+        lines.add(surrounding + "libra" + surrounding + " = " + emojiMappings.get("libra") + "\n");
+        lines.add(surrounding + "scorpius" + surrounding + " = " + emojiMappings.get("scorpius") + "\n");
+        lines.add(surrounding + "sagittarius" + surrounding + " = " + emojiMappings.get("sagittarius") + "\n");
+        lines.add(surrounding + "capricorn" + surrounding + " = " + emojiMappings.get("capricorn") + "\n");
+        lines.add(surrounding + "aquarius" + surrounding + " = " + emojiMappings.get("aquarius") + "\n");
+        lines.add(surrounding + "pisces" + surrounding + " = " + emojiMappings.get("pisces") + "\n");
+        lines.add(surrounding + "white_chess_king" + surrounding + " = " + emojiMappings.get("white_chess_king") + "\n");
+        lines.add(surrounding + "white_chess_queen" + surrounding + " = " + emojiMappings.get("white_chess_queen") + "\n");
+        lines.add(surrounding + "white_chess_rook" + surrounding + " = " + emojiMappings.get("white_chess_rook") + "\n");
+        lines.add(surrounding + "white_chess_bishop" + surrounding + " = " + emojiMappings.get("white_chess_bishop") + "\n");
+        lines.add(surrounding + "white_chess_knight" + surrounding + " = " + emojiMappings.get("white_chess_knight") + "\n");
+        lines.add(surrounding + "white_chess_pawn" + surrounding + " = " + emojiMappings.get("white_chess_pawn") + "\n");
+        lines.add(surrounding + "black_chess_king" + surrounding + " = " + emojiMappings.get("black_chess_king") + "\n");
+        lines.add(surrounding + "black_chess_queen" + surrounding + " = " + emojiMappings.get("black_chess_queen") + "\n");
+        lines.add(surrounding + "black_chess_rook" + surrounding + " = " + emojiMappings.get("black_chess_rook") + "\n");
+        lines.add(surrounding + "black_chess_bishop" + surrounding + " = " + emojiMappings.get("black_chess_bishop") + "\n");
+        lines.add(surrounding + "black_chess_knight" + surrounding + " = " + emojiMappings.get("black_chess_knight") + "\n");
+        lines.add(surrounding + "black_chess_pawn" + surrounding + " = " + emojiMappings.get("black_chess_pawn") + "\n");
+        lines.add(surrounding + "black_spade_suit" + surrounding + " = " + emojiMappings.get("black_spade_suit") + "\n");
+        lines.add(surrounding + "white_heart_suit" + surrounding + " = " + emojiMappings.get("white_heart_suit") + "\n");
+        lines.add(surrounding + "white_diamond_suit" + surrounding + " = " + emojiMappings.get("white_diamond_suit") + "\n");
+        lines.add(surrounding + "black_club_suit" + surrounding + " = " + emojiMappings.get("black_club_suit") + "\n");
+        lines.add(surrounding + "white_spade_suit" + surrounding + " = " + emojiMappings.get("white_spade_suit") + "\n");
+        lines.add(surrounding + "black_heart_suit" + surrounding + " = " + emojiMappings.get("black_heart_suit") + "\n");
+        lines.add(surrounding + "black_diamond_suit" + surrounding + " = " + emojiMappings.get("black_diamond_suit") + "\n");
+        lines.add(surrounding + "white_club_suit" + surrounding + " = " + emojiMappings.get("white_club_suit") + "\n");
+        lines.add(surrounding + "hot_springs" + surrounding + " = " + emojiMappings.get("hot_springs") + "\n");
+        lines.add(surrounding + "quarter_note" + surrounding + " = " + emojiMappings.get("quarter_note") + "\n");
+        lines.add(surrounding + "eighth_note" + surrounding + " = " + emojiMappings.get("eighth_note") + "\n");
+        lines.add(surrounding + "beamed_eighth_notes" + surrounding + " = " + emojiMappings.get("beamed_eighth_notes") + "\n");
+        lines.add(surrounding + "beamed_sixteenth_notes" + surrounding + " = " + emojiMappings.get("beamed_sixteenth_notes") + "\n");
+        lines.add(surrounding + "music_flat_sign" + surrounding + " = " + emojiMappings.get("music_flat_sign") + "\n");
+        lines.add(surrounding + "music_natural_sign" + surrounding + " = " + emojiMappings.get("music_natural_sign") + "\n");
+        lines.add(surrounding + "music_sharp_sign" + surrounding + " = " + emojiMappings.get("music_sharp_sign") + "\n");
+        lines.add(surrounding + "west_syriac_cross" + surrounding + " = " + emojiMappings.get("west_syriac_cross") + "\n");
+        lines.add(surrounding + "east_syriac_cross" + surrounding + " = " + emojiMappings.get("east_syriac_cross") + "\n");
         //Extra
         lines.add("%white_draughts_man% = "+ white_draughts_man + "\n");
         lines.add("%white_draughts_king% = "+ white_draughts_king + "\n");

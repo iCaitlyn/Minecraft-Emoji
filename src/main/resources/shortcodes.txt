@@ -9,6 +9,7 @@ joy,😂
 rofl,🤣
 rolling_on_the_floor_laughing,🤣
 relaxed,☺
+white_smiling_face,☺
 blush,😊
 innocent,😇
 slight_smile,🙂
@@ -1706,6 +1707,7 @@ right_anger_bubble,🗯
 spades,♠
 clubs,♣
 hearts,♥
+black_heart_suit,♥
 diamonds,♦
 black_joker,🃏
 flower_playing_cards,🎴
