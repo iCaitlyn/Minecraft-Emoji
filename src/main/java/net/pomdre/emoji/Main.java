@@ -320,7 +320,7 @@ public class Main extends JavaPlugin implements Listener {
             PrintWriter printWriter = new PrintWriter(writer);
             e.printStackTrace(printWriter);
             printWriter.flush();
-            logger.log(Level.SEVERE, writer.toString());
+            logger.severe(writer.toString());
           } finally {
               if (br != null) {
                   try {
